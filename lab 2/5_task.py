@@ -1,10 +1,8 @@
 import random
 
-# Исключение для некорректных последовательностей
 class InvalidSequenceError(Exception):
     pass
 
-# Класс для работы с РНК
 class RNA:
     valid_bases = {'A', 'U', 'G', 'C'}
 
@@ -43,7 +41,6 @@ class RNA:
         return self.sequence
 
 
-# Класс для работы с ДНК
 class DNA:
     valid_bases = {'A', 'T', 'G', 'C'}
 
@@ -88,44 +85,33 @@ class DNA:
         return f"Первая цепь: {self.first_strand}\nВторая цепь: {self.second_strand}"
 
 
-# Пример использования:
 
-# Создаем объекты РНК
 rna1 = RNA("AUGC")
 rna2 = RNA("CGGA")
 
-# Индексация
-print(rna1[0])  # A
-print(rna2[2])  # G
+print(rna1[0])  
+print(rna2[2])  
 
-# Склеивание РНК
 rna3 = rna1 + rna2
-print(rna3)  # AUGCCGGA
+print(rna3)
 
-# Перемножение РНК
 rna4 = rna1 * rna2
-print(rna4)  # Случайная последовательность, например: AGGC или CGGA
+print(rna4)  
 
-# Конвертация РНК в ДНК
 dna1 = rna1.to_dna()
-print(dna1)  # Первая цепь: TACC Вторая цепь: ATGG
+print(dna1)
 
-# Создаем объекты ДНК
 dna2 = DNA("ATGC", "TACG")
 dna3 = DNA("GGCC", "CCGG")
 
-# Индексация ДНК
-print(dna2[0])  # ('A', 'T')
-print(dna3[1])  # ('G', 'C')
+print(dna2[0])  
+print(dna3[1])  
 
-# Склеивание ДНК
 dna4 = dna2 + dna3
-print(dna4)  # Первая цепь: ATGCGGCC Вторая цепь: TACGCCGG
+print(dna4)  
 
-# Перемножение ДНК
 dna5 = dna2 * dna3
-print(dna5)  # Случайная последовательность
+print(dna5) 
 
-# Проверка на равенство
-print(rna1 == rna2)  # False
-print(dna2 == DNA("ATGC", "TACG"))  # True
+print(rna1 == rna2)
+print(dna2 == DNA("ATGC", "TACG"))
