@@ -1,117 +1,276 @@
+import tkinter as tk
+from tkinter import messagebox
 import random
 
-class InvalidSequenceError(Exception):
+
+class InvalidNucleotideError(Exception):
+    """Исключение, которое выбрасывается, если в строке содержатся недопустимые символы."""
     pass
-
-class RNA:
-    valid_bases = {'A', 'U', 'G', 'C'}
-
-    def __init__(self, sequence):
-        if not set(sequence).issubset(self.valid_bases):
-            raise InvalidSequenceError(f"Недопустимые символы в последовательности РНК: {sequence}")
-        self.sequence = sequence
-
-    def __getitem__(self, index):
-        return self.sequence[index]
-
-    def __add__(self, other):
-        if isinstance(other, RNA):
-            return RNA(self.sequence + other.sequence)
-        raise TypeError("Можно складывать только с другим объектом RNA")
-
-    def __mul__(self, other):
-        if isinstance(other, RNA):
-            min_length = min(len(self.sequence), len(other.sequence))
-            combined_seq = ''.join(random.choice([self.sequence[i], other.sequence[i]]) for i in range(min_length))
-            combined_seq += self.sequence[min_length:] + other.sequence[min_length:]
-            return RNA(combined_seq)
-        raise TypeError("Можно перемножать только с другим объектом RNA")
-
-    def to_dna(self):
-        dna_first_strand = self.sequence.replace('A', 'T').replace('U', 'A').replace('G', 'C').replace('C', 'G')
-        return DNA(dna_first_strand, DNA.complementary_strand(dna_first_strand))
-
-    def __eq__(self, other):
-        return isinstance(other, RNA) and self.sequence == other.sequence
-
-    def __repr__(self):
-        return f"RNA('{self.sequence}')"
-
-    def __str__(self):
-        return self.sequence
 
 
 class DNA:
-    valid_bases = {'A', 'T', 'G', 'C'}
+    def __init__(self, sequence):
+        self.sequence = sequence.upper()
+        self._validate_sequence('ATGC')
 
-    def __init__(self, first_strand, second_strand=None):
-        if not set(first_strand).issubset(self.valid_bases):
-            raise InvalidSequenceError(f"Недопустимые символы в первой цепи ДНК: {first_strand}")
-        if second_strand is None:
-            second_strand = self.complementary_strand(first_strand)
-        if len(first_strand) != len(second_strand) or not set(second_strand).issubset(self.valid_bases):
-            raise InvalidSequenceError("Цепочки ДНК должны быть одинаковой длины и содержать только допустимые основания.")
-        self.first_strand = first_strand
-        self.second_strand = second_strand
+    def _validate_sequence(self, allowed_bases):
+        for base in self.sequence:
+            if base not in allowed_bases:
+                raise InvalidNucleotideError(f"Недопустимый нуклеотид '{base}' в последовательности ДНК.")
+
+    def to_list(self):
+        complement = {
+            'A': 'T',
+            'T': 'A',
+            'G': 'C',
+            'C': 'G'
+        }
+        return [(base, complement[base]) for base in self.sequence]
+
+
+class RNA:
+    def __init__(self, sequence):
+        self.sequence = sequence.upper()
+        self._validate_sequence('AUGC')
+
+    def _validate_sequence(self, allowed_bases):
+        for base in self.sequence:
+            if base not in allowed_bases:
+                raise InvalidNucleotideError(f"Недопустимый нуклеотид '{base}' в последовательности РНК.")
+
+    def to_list(self):
+        return list(self.sequence)
+
+
+class NucleotideHelper(DNA, RNA):
+    def __init__(self, dna_sequence=None, rna_sequence=None):
+        if dna_sequence:
+            super(DNA, self).__init__(dna_sequence)
+        if rna_sequence:
+            super(RNA, self).__init__(rna_sequence)
 
     @staticmethod
-    def complementary_strand(strand):
-        return strand.replace('A', 'T').replace('T', 'A').replace('G', 'C').replace('C', 'G')
+    def to_set(nucleotide_list):
+        return set(nucleotide_list)
 
-    def __getitem__(self, index):
-        return self.first_strand[index], self.second_strand[index]
+    @staticmethod
+    def rna_to_dna(rna_sequence):
+        rna_to_dna_map = {
+            'A': 'T',
+            'U': 'A',
+            'G': 'C',
+            'C': 'G'
+        }
+        dna_first_strand = ''.join(rna_to_dna_map[base] for base in rna_sequence)
+        complement = {
+            'A': 'T',
+            'T': 'A',
+            'G': 'C',
+            'C': 'G'
+        }
+        dna_second_strand = ''.join(complement[base] for base in dna_first_strand)
+        return dna_first_strand, dna_second_strand
 
-    def __add__(self, other):
-        if isinstance(other, DNA):
-            return DNA(self.first_strand + other.first_strand, self.second_strand + other.second_strand)
-        raise TypeError("Можно складывать только с другим объектом DNA")
+    @staticmethod
+    def concatenate_rna(rna1, rna2):
+        return rna1 + rna2
 
-    def __mul__(self, other):
-        if isinstance(other, DNA):
-            min_length = min(len(self.first_strand), len(other.first_strand))
-            combined_first_strand = ''.join(random.choice([self.first_strand[i], other.first_strand[i]]) for i in range(min_length))
-            combined_first_strand += self.first_strand[min_length:] + other.first_strand[min_length:]
-            combined_second_strand = self.complementary_strand(combined_first_strand)
-            return DNA(combined_first_strand, combined_second_strand)
-        raise TypeError("Можно перемножать только с другим объектом DNA")
-
-    def __eq__(self, other):
-        return isinstance(other, DNA) and self.first_strand == other.first_strand and self.second_strand == other.second_strand
-
-    def __repr__(self):
-        return f"DNA('{self.first_strand}', '{self.second_strand}')"
-
-    def __str__(self):
-        return f"Первая цепь: {self.first_strand}\nВторая цепь: {self.second_strand}"
+    @staticmethod
+    def concatenate_dna(dna1, dna2):
+        first_strand = dna1[0] + dna2[0]
+        second_strand = dna1[1] + dna2[1]
+        return [first_strand, second_strand]
 
 
+class RNACrossOver(RNA):
+    @staticmethod
+    def crossover(rna1, rna2):
+        result = []
+        min_length = min(len(rna1), len(rna2))
+        for i in range(min_length):
+            result.append(random.choice([rna1[i], rna2[i]]))
+        if len(rna1) > len(rna2):
+            result.extend(rna1[min_length:])
+        else:
+            result.extend(rna2[min_length:])
+        return ''.join(result)
 
-rna1 = RNA("AUGC")
-rna2 = RNA("CGGA")
 
-print(rna1[0])  
-print(rna2[2])  
+class DNACrossOver(DNA):
+    @staticmethod
+    def crossover(dna1, dna2):
+        first_strand1, second_strand1 = dna1
+        first_strand2, second_strand2 = dna2
 
-rna3 = rna1 + rna2
-print(rna3)
+        # Перемножение первых цепочек
+        crossed_first_strand = RNACrossOver.crossover(first_strand1, first_strand2)
 
-rna4 = rna1 * rna2
-print(rna4)  
+        # Построение второй цепочки как комплементарной первой
+        complement = {
+            'A': 'T',
+            'T': 'A',
+            'G': 'C',
+            'C': 'G'
+        }
+        crossed_second_strand = ''.join(complement[base] for base in crossed_first_strand)
 
-dna1 = rna1.to_dna()
-print(dna1)
+        return [crossed_first_strand, crossed_second_strand]
 
-dna2 = DNA("ATGC", "TACG")
-dna3 = DNA("GGCC", "CCGG")
 
-print(dna2[0])  
-print(dna3[1])  
+class NucleotideComparator(DNA, RNA):
+    @staticmethod
+    def are_equal_dna_rna(dna, rna):
+        # Преобразуем РНК в ДНК
+        rna_to_dna_map = {
+            'A': 'T',
+            'U': 'A',
+            'G': 'C',
+            'C': 'G'
+        }
+        rna_dna_sequence = ''.join(rna_to_dna_map[base] for base in rna)
 
-dna4 = dna2 + dna3
-print(dna4)  
+        # Сравниваем обе цепочки ДНК с преобразованной РНК
+        return dna[0] == rna_dna_sequence or dna[1] == rna_dna_sequence
 
-dna5 = dna2 * dna3
-print(dna5) 
+    @staticmethod
+    def are_equal_concatenated_dna_rna(concatenated_dna, concatenated_rna):
+        # Преобразуем склеенную РНК в ДНК
+        rna_to_dna_map = {
+            'A': 'T',
+            'U': 'A',
+            'G': 'C',
+            'C': 'G'
+        }
+        concatenated_rna_dna_sequence = ''.join(rna_to_dna_map[base] for base in concatenated_rna)
 
-print(rna1 == rna2)
-print(dna2 == DNA("ATGC", "TACG"))
+        # Сравниваем обе цепочки склеенной ДНК с преобразованной склеенной РНК
+        return concatenated_dna[0] == concatenated_rna_dna_sequence or concatenated_dna[
+            1] == concatenated_rna_dna_sequence
+
+
+class NucleotideApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Nucleotide App")
+
+        self.dna_seq1_label = tk.Label(root, text="ДНК последовательность 1:")
+        self.dna_seq1_label.grid(row=0, column=0)
+        self.dna_seq1_entry = tk.Entry(root)
+        self.dna_seq1_entry.grid(row=0, column=1)
+        self.dna_seq1_entry.bind("<KeyRelease>", self.update_results)
+
+        self.dna_seq2_label = tk.Label(root, text="ДНК последовательность 2:")
+        self.dna_seq2_label.grid(row=1, column=0)
+        self.dna_seq2_entry = tk.Entry(root)
+        self.dna_seq2_entry.grid(row=1, column=1)
+        self.dna_seq2_entry.bind("<KeyRelease>", self.update_results)
+
+        self.rna_seq1_label = tk.Label(root, text="РНК последовательность 1:")
+        self.rna_seq1_label.grid(row=2, column=0)
+        self.rna_seq1_entry = tk.Entry(root)
+        self.rna_seq1_entry.grid(row=2, column=1)
+        self.rna_seq1_entry.bind("<KeyRelease>", self.update_results)
+
+        self.rna_seq2_label = tk.Label(root, text="РНК последовательность 2:")
+        self.rna_seq2_label.grid(row=3, column=0)
+        self.rna_seq2_entry = tk.Entry(root)
+        self.rna_seq2_entry.grid(row=3, column=1)
+        self.rna_seq2_entry.bind("<KeyRelease>", self.update_results)
+
+        self.dna_concatenate_label = tk.Label(root, text="Склеенная ДНК:")
+        self.dna_concatenate_label.grid(row=4, column=0)
+        self.dna_concatenate_result = tk.Label(root, text="")
+        self.dna_concatenate_result.grid(row=4, column=1)
+
+        self.rna_concatenate_label = tk.Label(root, text="Склеенная РНК:")
+        self.rna_concatenate_label.grid(row=5, column=0)
+        self.rna_concatenate_result = tk.Label(root, text="")
+        self.rna_concatenate_result.grid(row=5, column=1)
+
+        self.dna_crossover_label = tk.Label(root, text="Перемноженная ДНК:")
+        self.dna_crossover_label.grid(row=6, column=0)
+        self.dna_crossover_result = tk.Label(root, text="")
+        self.dna_crossover_result.grid(row=6, column=1)
+
+        self.rna_crossover_label = tk.Label(root, text="Перемноженная РНК:")
+        self.rna_crossover_label.grid(row=7, column=0)
+        self.rna_crossover_result = tk.Label(root, text="")
+        self.rna_crossover_result.grid(row=7, column=1)
+
+        self.dna_rna_equal_label = tk.Label(root, text="Равны ли ДНК и РНК:")
+        self.dna_rna_equal_label.grid(row=8, column=0)
+        self.dna_rna_equal_result = tk.Label(root, text="")
+        self.dna_rna_equal_result.grid(row=8, column=1)
+
+        self.concatenated_dna_rna_equal_label = tk.Label(root, text="Равны ли склеенные ДНК и РНК:")
+        self.concatenated_dna_rna_equal_label.grid(row=9, column=0)
+        self.concatenated_dna_rna_equal_result = tk.Label(root, text="")
+        self.concatenated_dna_rna_equal_result.grid(row=9, column=1)
+
+        self.crossed_dna_rna_equal_label = tk.Label(root, text="Равны ли перемноженные ДНК и РНК:")
+        self.crossed_dna_rna_equal_label.grid(row=10, column=0)
+        self.crossed_dna_rna_equal_result = tk.Label(root, text="")
+        self.crossed_dna_rna_equal_result.grid(row=10, column=1)
+
+    def update_results(self, event=None):
+        try:
+            dna1_seq = self.dna_seq1_entry.get()
+            dna2_seq = self.dna_seq2_entry.get()
+            rna1_seq = self.rna_seq1_entry.get()
+            rna2_seq = self.rna_seq2_entry.get()
+
+            if dna1_seq and dna2_seq:
+                dna1 = DNA(dna1_seq)
+                dna2 = DNA(dna2_seq)
+                concatenated_dna = NucleotideHelper.concatenate_dna([dna1.sequence, dna1.sequence],
+                                                                    [dna2.sequence, dna2.sequence])
+                self.dna_concatenate_result.config(text=f"{concatenated_dna}")
+                print(f"Склеенная ДНК: {concatenated_dna}")
+
+                crossed_dna = DNACrossOver.crossover([dna1.sequence, dna1.sequence], [dna2.sequence, dna2.sequence])
+                self.dna_crossover_result.config(text=f"{crossed_dna}")
+                print(f"Перемноженная ДНК: {crossed_dna}")
+
+            if rna1_seq and rna2_seq:
+                rna1 = RNA(rna1_seq)
+                rna2 = RNA(rna2_seq)
+                concatenated_rna = NucleotideHelper.concatenate_rna(rna1.sequence, rna2.sequence)
+                self.rna_concatenate_result.config(text=f"{concatenated_rna}")
+                print(f"Склеенная РНК: {concatenated_rna}")
+
+                crossed_rna = RNACrossOver.crossover(rna1.sequence, rna2.sequence)
+                self.rna_crossover_result.config(text=f"{crossed_rna}")
+                print(f"Перемноженная РНК: {crossed_rna}")
+
+            if dna1_seq and rna1_seq:
+                dna1 = DNA(dna1_seq)
+                rna1 = RNA(rna1_seq)
+                are_equal_dna_rna = NucleotideComparator.are_equal_dna_rna([dna1.sequence, dna1.sequence],
+                                                                           rna1.sequence)
+                self.dna_rna_equal_result.config(text=f"{are_equal_dna_rna}")
+                print(f"Равны ли ДНК и РНК: {are_equal_dna_rna}")
+
+            if dna1_seq and dna2_seq and rna1_seq and rna2_seq:
+                concatenated_dna = NucleotideHelper.concatenate_dna([dna1.sequence, dna1.sequence],
+                                                                    [dna2.sequence, dna2.sequence])
+                concatenated_rna = NucleotideHelper.concatenate_rna(rna1.sequence, rna2.sequence)
+                are_equal_concatenated_dna_rna = NucleotideComparator.are_equal_concatenated_dna_rna(concatenated_dna,
+                                                                                                     concatenated_rna)
+                self.concatenated_dna_rna_equal_result.config(text=f"{are_equal_concatenated_dna_rna}")
+                print(f"Равны ли склеенные ДНК и РНК: {are_equal_concatenated_dna_rna}")
+
+                crossed_dna = DNACrossOver.crossover([dna1.sequence, dna1.sequence], [dna2.sequence, dna2.sequence])
+                crossed_rna = RNACrossOver.crossover(rna1.sequence, rna2.sequence)
+                are_equal_crossed_dna_rna = NucleotideComparator.are_equal_dna_rna(crossed_dna, crossed_rna)
+                self.crossed_dna_rna_equal_result.config(text=f"{are_equal_crossed_dna_rna}")
+                print(f"Равны ли перемноженные ДНК и РНК: {are_equal_crossed_dna_rna}")
+
+        except InvalidNucleotideError as e:
+            messagebox.showerror("Ошибка", str(e))
+            print(f"Ошибка: {e}")
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = NucleotideApp(root)
+    root.mainloop()
